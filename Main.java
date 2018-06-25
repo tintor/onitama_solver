@@ -4,6 +4,7 @@ import java.util.Deque;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.Arrays;
+import java.util.Random;
 
 // Board chars
 // 'R' 'r'
@@ -354,17 +355,20 @@ class State {
 		}
 	}
 
-	byte winner() {
-		int blue = piece_pos(0), red = piece_pos(5);
-		if (red == -1 || blue == 2)
-			return BLUE;
-		if (blue == -1 || red == 22)
-			return RED;
-		return NONE;
+	boolean blue_wins() {
+		return piece_pos(5) == -1 || piece_pos(0) == 2;
+	}
+
+	boolean red_wins() {
+		return piece_pos(0) == -1 || piece_pos(5) == 22;
 	}
 }
 
-class Main {
+class Minimax {
+	final Random random = new Random();
+	final HashSet<State> path = new HashSet<State>();
+	int remaining_states;
+	
 	static class Result {
 		Result(State move, int value) {
 			this.move = move;
@@ -374,69 +378,72 @@ class Main {
 		final int score; // +100 win, 0 tie, -100 loose (otherwise material advantage + master distance to temple advantage)
 	}
 
-	static Result bestMove(State a, Set<State> path) {
+	Result bestMove(State a, int max_depth) {
 		State best_b = null;
 		int best_score = a.next == State.BLUE ? -100 : 100;
+		int same_score = 0;
 		for (State b : a.next()) {
 			if (b == null)
 				break;
-			if (path.contains(b))
-				continue;
 			int score;
-			if (b.winner() == State.BLUE) {
+			if (b.blue_wins()) {
 				score = 100;
-			} else if (b.winner() == State.RED) {
+			} else if (b.red_wins()) {
 				score = -100;
-			} else if (b.depth == 7) {
+			} else if (b.depth >= max_depth || remaining_states == 0 || path.contains(b)) {
 				score = b.pawn_diff() + b.master_diff();
-				//if (!maximize) score = -score; 
 			} else {
+				if (remaining_states > 0)
+					remaining_states -= 1;
 				path.add(b);
-				score = bestMove(b, path).score;
+				score = bestMove(b, max_depth).score;
 				path.remove(b);
 			}
 			if (best_b == null || (a.next == State.BLUE && score > best_score) || (a.next == State.RED && score < best_score)) {
 				best_b = b;
 				best_score = score;
+				same_score = 1;
+			} else if (score == best_score) {
+				if (random.nextDouble() * (same_score + 1) > same_score) {
+					best_b = b;
+				}
+				same_score += 1;
 			}
 		}
 		return new Result(best_b, best_score);
 	}
+}
+
+class Main {
 
 	public static void main(String[] args) {
-		State s = new State(Board.initial, (byte)0, (byte)1, (byte)2, (byte)3, (byte)4, State.BLUE, 0);
+		byte[] cards = new byte[Card.cards.length];
+		for (int i = 0; i < cards.length; i++)
+			cards[i] = (byte)i;
+		Random r = new Random();
+		for (int i = cards.length - 1; i >= 0; i--) {
+			int j = r.nextInt(i + 1);
+			byte t = cards[i];
+			cards[i] = cards[j];
+			cards[j] = t;
+		}
+		State s = new State(Board.initial, cards[0], cards[1], cards[2], cards[3], cards[4], r.nextBoolean() ? State.BLUE : State.RED, 0);
 		s.print();
 
-		/*Set<State> visited = new HashSet<State>();
-		visited.add(s);
-		final ArrayDeque<State> queue = new ArrayDeque<State>();
-		queue.add(s);
-		long blue = 0, red = 0;
-		int c = 0;
-		while (!queue.isEmpty()) {
-			final State a = queue.pollFirst();
-			if (c++ % 100000 == 0) {
-				System.out.printf("visited %s, queue %s, blue %s, red %s, depth %s\n", visited.size(), queue.size(), blue, red, a.depth);
-				a.print();
-			}
-			for (final State b : a.next()) {
-				if (b == null)
+		Minimax mx = new Minimax();
+		while (!s.blue_wins() && !s.red_wins()) {
+			Minimax.Result m = null;
+			mx.remaining_states = s.next == State.BLUE ? 2000*1000 : 10000;
+			for (int depth = 1; depth <= 100; depth++) {
+				long start = System.nanoTime();
+				Minimax.Result m0 = mx.bestMove(s, depth);
+				float duration = (System.nanoTime() - start) * 1e-9f;
+				if (mx.remaining_states == 0)
 					break;
-				char w = b.winner();
-				if (w != ' ') {
-					if (w == 'b') blue += 1;
-					if (w == 'r') red += 1;
-					continue;
-				}
-				if (!visited.contains(b)) {
-					visited.add(b);
-					queue.addLast(b);
-				}
+				m = m0;
+				if (duration >= 0.01f)
+					System.out.printf("depth %d, time %.2f\n", depth, duration);
 			}
-		}*/
-		while (true) {
-			Result m = bestMove(s, new HashSet<State>());
-			System.out.printf("Best move (%d):\n", m.score);
 			m.move.print();
 			s = m.move;
 		}
