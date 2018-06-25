@@ -3,6 +3,7 @@ import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.Arrays;
 
 // Board chars
 // 'R' 'r'
@@ -12,267 +13,419 @@ import java.util.Set;
 // Red goes down
 // Blue goes up
 
-// 5 bits + 2 * 25
-
 class Bits {
-	static long compress(String board) {
-		// format is 10 pieces x 5 bits: BbbbbRrrrr
-		// 5 bits decode to board position 0-24 or 31 (captured)
-		// pawn positions are sorted
-		int[] piece = new int[10];
-		Arrays.fill(piece, 31);
-		int red = 0, blue = 0;
-		for (int i = 0; i < 25; i++) {
-			char c = board.charAt(i);
-			if (c == 'B') piece[0] = i;
-			if (c == 'R') piece[5] = i;
-			if (c == 'b') piece[1 + blue++] = i;
-			if (c == 'r') piece[6 + red++] = i;
-		}
-		// TODO sort blue
-		// TODO sort red
-		long a = 0;
-		for (int i = 0; i < 10; i++)
-			a |= (piece[i] & 0x1F) << (i * 5);
-		return a;
+	static long clear(long a, int i) {
+		long m = 0x1f;
+		m <<= i * 5;
+		return a & ~m;
 	}
-	static String decompress(long board) {
-		char[] a = new char[25];
-		for (int i = 0; i < 25; i++) a[i] = ' ';
-		for (int i = 0; i < 10; i++) {
-			int v = (board >> (i * 5)) & 0x1F;
-			if (v != 31) {
-				char c = (i < 5) ? 'b' : 'r';
-				if (i == 0) c = 'B';
-				if (i == 5) c = 'R';
-				a[v] = c;
-			}
-		}
-		return new String(a).intern();
+	
+	static int get(long a, int i) {
+		int e = (int)(a >> (i * 5));
+		return e & 0x1F;
 	}
-	static char read(long board, int p) {
-		for (int i = 0; i < 10; i++) {
-			int v = (board >> (i * 5)) & 0x1F;
-			if (v == p) {
-				if (i == 0) return 'B';
-				if (i == 5) return 'R';
-				return (i < 5) ? 'b' : 'r';
-			}
-		}
-		return ' ';
+
+	static long add(int i, int v) {
+		return ((long)v) << (i * 5);
+	}
+	
+	static long write(long a, int i, int v) {
+		return clear(a, i) | add(i, v);
 	}
 }
 
-class State {
-	static String intern(String a) { return a.intern(); }
+class Board {
+	// format is 10 pieces x 5 bits: BbbbbRrrrr
+	// 5 bits decode to board position 1-25 or 0 (captured)
+	// pawn positions are sorted
+	static long encode(String board) {
+		long a = 0;
+		int blue = 1, red = 6;
+		for (int i = 0; i < 25; i++) {
+			char c = board.charAt(i);
+			if (c == 'B') a |= Bits.add(0, i + 1);
+			if (c == 'R') a |= Bits.add(5, i + 1);
+			if (c == 'b') a |= Bits.add(blue++, i + 1);
+			if (c == 'r') a |= Bits.add(red++, i + 1);
+		}
+		return a;
+	}
 
-	static final String initial = intern(
+	static long encode(char[] board) {
+		long a = 0;
+		int blue = 1, red = 6;
+		for (int i = 0; i < 25; i++) {
+			char c = board[i];
+			if (c == 'B') a |= Bits.add(0, i + 1);
+			if (c == 'R') a |= Bits.add(5, i + 1);
+			if (c == 'b') a |= Bits.add(blue++, i + 1);
+			if (c == 'r') a |= Bits.add(red++, i + 1);
+		}
+		return a;
+	}
+
+	static char[] decode(char[] a, long board) {
+		Arrays.fill(a, ' ');
+		for (int i = 0; i < 10; i++) {
+			int v = Bits.get(board, i);
+			if (v != 0) {
+				char c = (i < 5) ? 'b' : 'r';
+				if (i == 0) c = 'B';
+				if (i == 5) c = 'R';
+				a[v - 1] = c;
+			}
+		}
+		return a;
+	}
+
+	static long jump(char[] a, long board, int ord, int dest) {
+		assert 0 <= ord && ord < 10;
+		assert 0 <= dest && dest < 25;
+		//if (ord == 0 || ord == 4 || ord == 5 || ord == 9)
+		//	return Bits.clear(board, ord) | Bits.add(ord, pos);
+		int src = Bits.get(board, ord) - 1;
+		decode(a, board);
+		a[dest] = a[src];
+		a[src] = ' ';
+		return encode(a);
+	}
+	
+    /*static int read_pos(long board, boolean red, int ord) {
+		return Bits.get(board, red ? ord + 5 : ord);
+	}
+
+	// will also shift others
+	static long remove_pos(long board, boolean red, int ord) {
+		if (red)
+			ord += 5;		
+		if (ord == 0 || ord == 5)
+			return Bits.clear(board, ord);
+		board = Bits.clear(board, ord);
+		while (ord % 5 != 4) {
+			board = Bits.add();
+		} 
+	}
+
+	long jump(int piece, int dest) {
+		long b = board;
+		int src = my_piece_pos(piece);
+
+		for (int i = 0; i < 5; i++)
+			if (read_pos(b, next != RED, i) == dest) {
+				b = write
+				b = sort(b, 
+				b = remove_pos(b, next != RED, i);
+				break;
+			}
+		b = Bits.write(b, piece, dest);
+
+		b = remove_pos(b, next == RED, piece);
+		b = insert_pos(b, next == RED, dest);
+		return b;
+
+		// TODO perform the jump in place (avoid decode & encode) (also may need to remove enemy piece)
+		/*char[] a = decode(board);
+		a[dest] = a[src];
+		a[src] = ' ';
+		return encode(new String(a));
+	}*/
+
+	static final long initial = encode(
 		"rrRrr"+
 		"     "+
 		"     "+
 		"     "+
 		"bbBbb");
-	static final String tiger = intern(
+}
+
+class Card {
+	static final String tiger =
 		"  x  "+
 		"     "+
 		"  *  "+
 		"  x  "+
-		"     ");
-	static final String monkey = intern(
+		"     ";
+	static final String monkey =
 		"     "+
 		" x x "+
 		"  *  "+
 		" x x "+
-		"     ");
-	static final String horse = intern(
+		"     ";
+	static final String horse =
 		"     "+
 		"  x  "+
 		" x*  "+
 		"  x  "+
-		"     ");
-	static final String mantis = intern(
+		"     ";
+	static final String mantis =
 		"     "+
 		" x x "+
 		"  *  "+
 		"  x  "+
-		"     ");
-	static final String elephant = intern(
+		"     ";
+	static final String elephant =
 		"     "+
 		" x x "+
 		" x*x "+
 		"     "+
-		"     ");
-	static final String crab = intern(
+		"     ";
+	static final String crab =
 		"     "+
 		"  x  "+
 		"x * x"+
 		"     "+
-		"     ");
-	static final String crane = intern(
+		"     ";
+	static final String crane =
 		"     "+
 		"  x  "+
 		"  *  "+
 		" x x "+
-		"     ");
-	static final String dragon = intern(
+		"     ";
+	static final String dragon =
 		"     "+
 		"x   x"+
 		"  *  "+
 		" x x "+
-		"     ");
-	static final String boar = intern(
+		"     ";
+	static final String boar =
 		"     "+
 		"  x  "+
 		" x*x "+
 		"     "+
-		"     ");
-	static final String frog = intern(
+		"     ";
+	static final String frog =
 		"     "+
 		" x   "+
 		"x *  "+
 		"   x "+
-		"     ");
-	static final String goose = intern(
+		"     ";
+	static final String goose =
 		"     "+
 		" x   "+
 		" x*x "+
 		"   x "+
-		"     ");
-	static final String eel = intern(
+		"     ";
+	static final String eel =
 		"     "+
 		" x   "+
 		"  *x "+
 		" x   "+
-		"     ");
+		"     ";
 	static final String[] cards = { tiger, monkey, horse, mantis, elephant, crab, crane, dragon, boar, frog, goose, eel };
 	// rabbit, rooster, ox, cobra
-
-	private static ArrayList<Integer> moves(int p, String card, char next) {
-		ArrayList<Integer> moves = new ArrayList<Integer>();
-		for (int i = 0; i < 25; i++) if (card.charAt(i) == 'x') {
-			int xi = i%5 - 2, yi = i/5 - 2;
-			if (next == 'r') { xi = -xi; yi = -yi; }
-			int x = p%5 + xi, y = p/5 + yi;
-			if (0 <= x && x < 5 && 0 <= y && y < 5)
-				moves.add(x + y * 5);
-		}
-		return moves;
+	
+	static int jump_dest(int p, byte card, boolean rotate, int i) {
+		if (cards[card].charAt(i) != 'x') return -1;
+		int xi = i%5 - 2, yi = i/5 - 2;
+		if (rotate) { xi = -xi; yi = -yi; }
+		int x = p%5 + xi, y = p/5 + yi;
+		if (0 <= x && x < 5 && 0 <= y && y < 5)
+			return x + y * 5;
+		return -1;
 	}
+}
 
-	private static boolean equals(String a0, String a1, String b0, String b1) {
-		return (a0 == b0 && a1 == b1) || (a0 == b1 && a1 == b0);
+class State {
+	final long board;
+	final byte blue0, blue1, red0, red1, extra;
+	final byte next;
+	static final byte NONE = 0, RED = 1, BLUE = 2;
+	final int depth;
+	
+	State(long board, byte blue0, byte blue1, byte red0, byte red1, byte extra, byte next, int depth) {
+		this.board = board;
+		this.blue0 = (byte)Math.min(blue0, blue1);
+		this.blue1 = (byte)Math.max(blue0, blue1);
+		this.red0 = (byte)Math.min(red0, red1);
+		this.red1 = (byte)Math.max(red0, red1);
+		this.extra = extra;
+		this.next = next;
+		this.depth = depth;
 	}
 
 	@Override
 	public boolean equals(Object o) {
 		State b = (State)o;
-		return board == b.board && extra_card == b.extra_card && next == b.next && equals(red0, red1, b.red0, b.red1) && equals(blue0, blue1, b.blue0, b.blue1);
+		return board == b.board && extra == b.extra && next == b.next && blue0 == b.blue0 && blue1 == b.blue1 && red0 == b.red0 && red1 == b.red1;
 	}
 
 	@Override
 	public int hashCode() {
 		int h = 0;
-		h = h * 37 + (next == 'b' ? 234 : 578);
-		h = h * 37 + board.hashCode();
-		h = h * 37 + extra_card.hashCode();
-		h = h * 37 + (red0.hashCode() ^ red1.hashCode());
-		h = h * 37 + (blue0.hashCode() ^ blue1.hashCode());
+		h = h * 37 + next;
+		h = h * 37 + Long.hashCode(board);
+		h = h * 37 + blue0;
+		h = h * 37 + blue1;
+		h = h * 37 + red0;
+		h = h * 37 + red1;
+		h = h * 37 + extra;
 		return h;
 	}
 
-	String board = initial;
-	// cards are always relative to their owner
-	String blue0 = tiger, blue1 = monkey;
-	String red0 = horse, red1 = mantis;
-	String extra_card = elephant;
-	char next = 'b'; // 'r' or 'b'
+	int pawn_diff() {
+		int d = 0;
+		for (int i = 1; i < 5; i++) {
+			if (piece_pos(i) != -1)
+				d += 1;
+		}
+		for (int i = 6; i < 10; i++) {
+			if (piece_pos(i) != -1)
+				d -= 1;
+		}
+		return d;
+	}
 
-	static char lower(char c) { return Character.toLowerCase(c); }
+	int master_diff() {
+		int b = piece_pos(0);
+		int r = piece_pos(5);
+		return - (Math.max(Math.abs(b / 5), Math.abs(b % 5 - 2)) - Math.max(Math.abs(r / 5 - 4), Math.abs(r % 5 - 2)));
+	}
 
-	static String replace(String s, int p1, char c1, int p2, char c2) { char[] m = s.toCharArray(); m[p1] = c1; m[p2] = c2; return new String(m).intern(); }
-
-	Set<State> next() {
-		Set<State> states = new HashSet<State>();
-		for (int i = 0; i < 25; i++) if (lower(board.charAt(i)) == next)
-			for (int c = 0; c < 2; c++)
-				for (int m : moves(i, (next == 'b') ? blue_card[c] : red_card[c], next))
-					if (lower(board.charAt(m)) != next) {
-						State s = new State();
-						s.red_card[0] = red_card[0];
-						s.red_card[1] = red_card[1];
-						s.blue_card[0] = blue_card[0];
-						s.blue_card[1] = blue_card[1];
+	// returns -1 if piece is captured
+	int piece_pos(int ord) {
+		assert 0 <= ord && ord < 10;
+		return Bits.get(board, ord) - 1;
+	}
 	
-						s.board = replace(board, i, ' ', m, board.charAt(i));
-						if (next == 'b') s.blue_card[c] = extra_card; else s.red_card[c] = extra_card;
-						s.extra_card = (next == 'b') ? blue_card[c] : red_card[c];
-						s.next = (next == 'b') ? 'r' : 'b';
-						states.add(s);
+	int my_piece_pos(int ord) {
+		return piece_pos(next == RED ? ord + 5 : ord);
+	}
+
+	static char[] a = new char[25];
+
+	State[] next() {
+		State[] states = new State[40];
+		int count = 0;
+		for (int piece = 0; piece < 5; piece++) {
+			int pos = my_piece_pos(piece);
+			if (pos == -1)
+				break;
+			for (int c = 0; c < 2; c++) {
+				byte _extra = (next == BLUE) ? (c == 0 ? blue0 : blue1) : (c == 0 ? red0 : red1);
+				for (int e = 0; e < 25; e++) {
+					int m = Card.jump_dest(pos, _extra, next == RED, e);
+					if (m != -1 && m != my_piece_pos(0) && m != my_piece_pos(1) && m != my_piece_pos(2) && m != my_piece_pos(3) && m != my_piece_pos(4)) {
+						byte _blue0 = blue0;
+						byte _blue1 = blue1;
+						byte _red0 = red0;
+						byte _red1 = red1;
+						if (next == BLUE) {
+							if (c == 0) _blue0 = extra; else _blue1 = extra;
+						} else {
+							if (c == 0) _red0 = extra; else _red1 = extra;
+						}
+						states[count++] = new State(Board.jump(a, board, piece + (next == RED ? 5 : 0), m), _blue0, _blue1, _red0, _red1, _extra, (next == RED) ? BLUE : RED, depth + 1);
 					}
+				}
+			}
+		}
 		return states;
 	}
 
-	static String row(String a, int r) { return a.substring(r*5, r*5+5); }
-
-	void print() {
-		System.out.printf("Board (next[%c], winner[%c])\n", next, winner());
-		for (int i = 0; i < 5; i++)
-			System.out.printf(".%s.\n", row(board, i));
-		System.out.println("Blue        Extra        Red");
-		for (int i = 0; i < 5; i++)
-			System.out.printf("%s.%s.%s.%s.%s\n", row(blue_card[0], i), row(blue_card[1], i), row(extra_card, i), row(red_card[0], i), row(red_card[1], i));
+	static String emoji(String a, String e) {
+		String r = "";
+		for (int i = 0; i < 5; i++) switch (a.charAt(i)) {
+		case ' ': r += "  "; break;
+		case 'x': r += "▫️ "; break;
+		case '*': r += e; break;
+		}
+		return r;
 	}
 
-	char winner() {
-		if (!board.contains("R") || board.charAt(2) == 'B') return 'b';
-		if (!board.contains("B") || board.charAt(22) == 'R') return 'r';
-		return ' ';
+	static String row(int a, int r, String e) { return emoji(Card.cards[a].substring(r*5, r*5+5), e); }
+
+	static String code(char c) {
+		switch (c) {
+		case ' ': return "⬛";
+		case 'B': return "🔷";
+		case 'b': return "🔹";
+		case 'R': return "🔶";
+		case 'r': return "🔸";
+		}
+		return null;
+	}
+
+	void print() {
+		char[] a = Board.decode(new char[25], board);
+		for (int i = 0; i < 5; i++) {
+			String e = code(a[i*5]) + code(a[i*5+1]) + code(a[i*5+2]) + code(a[i*5+3]) + code(a[i*5+4]);
+			String p = (i == 2) ? code(next == State.RED ? 'R' : 'B') : "  ";
+			System.out.printf("%s  %s %s%s%s%s%s\n", p, e, row(blue0, i, "🔷"), row(blue1, i, "🔷"), row(extra, i, "🔺"), row(red0, i, "🔶"), row(red1, i, "🔶"));
+		}
+	}
+
+	byte winner() {
+		int blue = piece_pos(0), red = piece_pos(5);
+		if (red == -1 || blue == 2)
+			return BLUE;
+		if (blue == -1 || red == 22)
+			return RED;
+		return NONE;
 	}
 }
 
 class Main {
-	/*class Result {
-		Result(State move, int value): move(m), value(v) { }
+	static class Result {
+		Result(State move, int value) {
+			this.move = move;
+			this.score = value;
+		}
 		final State move;
-		final int value; // +100 win, 0 tie, -100 loose (otherwise material advantage + master distance to temple advantage)
+		final int score; // +100 win, 0 tie, -100 loose (otherwise material advantage + master distance to temple advantage)
 	}
-	// or null if game is lost
-	static Result bestMove(State a) {
-		Set<State> moves = a.next();
-		for (State b : moves)
-			if (b.winner() == a.next)
-				return new Result(b, 100);
-		Result min_c = null;
-		for (State b : moves) {
-			Result c = bestMove(b);
-			if (min_c == null || c.value < min_c.value) {
-				min_c = c;
+
+	static Result bestMove(State a, Set<State> path) {
+		State best_b = null;
+		int best_score = a.next == State.BLUE ? -100 : 100;
+		for (State b : a.next()) {
+			if (b == null)
+				break;
+			if (path.contains(b))
+				continue;
+			int score;
+			if (b.winner() == State.BLUE) {
+				score = 100;
+			} else if (b.winner() == State.RED) {
+				score = -100;
+			} else if (b.depth == 7) {
+				score = b.pawn_diff() + b.master_diff();
+				//if (!maximize) score = -score; 
+			} else {
+				path.add(b);
+				score = bestMove(b, path).score;
+				path.remove(b);
+			}
+			if (best_b == null || (a.next == State.BLUE && score > best_score) || (a.next == State.RED && score < best_score)) {
+				best_b = b;
+				best_score = score;
 			}
 		}
-		return min_c;
-	}*/
+		return new Result(best_b, best_score);
+	}
 
 	public static void main(String[] args) {
-		State s = new State();
-		s.next = 'b';
+		State s = new State(Board.initial, (byte)0, (byte)1, (byte)2, (byte)3, (byte)4, State.BLUE, 0);
 		s.print();
 
-		Set<State> visited = new HashSet<State>();
+		/*Set<State> visited = new HashSet<State>();
 		visited.add(s);
-		Deque<State> queue = new ArrayDeque<State>();
+		final ArrayDeque<State> queue = new ArrayDeque<State>();
 		queue.add(s);
-		long leaves = 0;
+		long blue = 0, red = 0;
 		int c = 0;
 		while (!queue.isEmpty()) {
-			State a = queue.pollFirst();
-			c += 1;
-			if (c % 100000 == 0) {
-				System.out.printf("visited %s, queue %s, leaves %s\n", visited.size(), queue.size(), leaves);
+			final State a = queue.pollFirst();
+			if (c++ % 100000 == 0) {
+				System.out.printf("visited %s, queue %s, blue %s, red %s, depth %s\n", visited.size(), queue.size(), blue, red, a.depth);
 				a.print();
 			}
-			for (State b : a.next()) {
-				if (b.winner() != ' ') {
-					leaves += 1;
+			for (final State b : a.next()) {
+				if (b == null)
+					break;
+				char w = b.winner();
+				if (w != ' ') {
+					if (w == 'b') blue += 1;
+					if (w == 'r') red += 1;
 					continue;
 				}
 				if (!visited.contains(b)) {
@@ -280,9 +433,12 @@ class Main {
 					queue.addLast(b);
 				}
 			}
+		}*/
+		while (true) {
+			Result m = bestMove(s, new HashSet<State>());
+			System.out.printf("Best move (%d):\n", m.score);
+			m.move.print();
+			s = m.move;
 		}
-		//Result m = bestMove(s);
-		//System.out.printf("Best move (%d):\n", m.value);
-		//m.move.print();		
 	}
 }
