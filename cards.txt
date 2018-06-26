@@ -1,0 +1,192 @@
+tiger
+  x  
+     
+  *  
+  x  
+     
+monkey
+     
+ x x 
+  *  
+ x x 
+     
+horse
+     
+  x  
+ x*  
+  x  
+     
+mantis
+     
+ x x 
+  *  
+  x  
+     
+elephant
+     
+ x x 
+ x*x 
+     
+     
+crab
+     
+  x  
+x * x
+     
+     
+crane
+     
+  x  
+  *  
+ x x 
+     
+dragon
+     
+x   x
+  *  
+ x x 
+     
+boar
+     
+  x  
+ x*x 
+     
+     
+frog
+     
+ x   
+x *  
+   x 
+     
+goose
+     
+ x   
+ x*x 
+   x 
+     
+eel
+     
+ x   
+  *x 
+ x   
+     
+rabbit
+     
+   x 
+  * x
+ x   
+     
+rooster
+     
+   x 
+ x*x 
+ x   
+     
+ox
+     
+  x  
+  *x 
+  x  
+     
+cobra
+     
+   x 
+ x*  
+   x 
+     
+giraffe
+     
+x   x
+  *  
+  x  
+     
+kirin
+ x x 
+     
+  *  
+     
+  x  
+phoenix
+     
+ x x 
+x * x
+     
+     
+turtle
+     
+     
+x * x
+ x x 
+     
+fox
+     
+   x 
+  *x 
+   x 
+     
+panda
+     
+  xx 
+  *  
+ x   
+     
+sea_snake
+     
+  x  
+  * x
+ x   
+     
+mouse
+     
+  x  
+  *x 
+ x   
+     
+tanuki
+     
+  x x
+  *  
+ x   
+     
+sable
+     
+   x 
+x *  
+ x   
+     
+dog
+     
+ x   
+ x*  
+ x   
+     
+bear
+     
+ xx  
+  *  
+   x 
+     
+viper
+     
+  x  
+x *  
+   x 
+     
+rat
+     
+  x  
+ x*  
+   x 
+     
+iguana
+     
+x x  
+  *  
+   x 
+     
+otter
+     
+ x   
+  * x
+   x 
+     

@@ -5,6 +5,10 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.Arrays;
 import java.util.Random;
+import java.nio.charset.Charset;
+import java.nio.file.Paths;
+import java.nio.file.Files;
+import java.io.IOException;
 
 // Board chars
 // 'R' 'r'
@@ -140,83 +144,57 @@ class Board {
 }
 
 class Card {
-	static final String tiger =
-		"  x  "+
-		"     "+
-		"  *  "+
-		"  x  "+
-		"     ";
-	static final String monkey =
-		"     "+
-		" x x "+
-		"  *  "+
-		" x x "+
-		"     ";
-	static final String horse =
-		"     "+
-		"  x  "+
-		" x*  "+
-		"  x  "+
-		"     ";
-	static final String mantis =
-		"     "+
-		" x x "+
-		"  *  "+
-		"  x  "+
-		"     ";
-	static final String elephant =
-		"     "+
-		" x x "+
-		" x*x "+
-		"     "+
-		"     ";
-	static final String crab =
-		"     "+
-		"  x  "+
-		"x * x"+
-		"     "+
-		"     ";
-	static final String crane =
-		"     "+
-		"  x  "+
-		"  *  "+
-		" x x "+
-		"     ";
-	static final String dragon =
-		"     "+
-		"x   x"+
-		"  *  "+
-		" x x "+
-		"     ";
-	static final String boar =
-		"     "+
-		"  x  "+
-		" x*x "+
-		"     "+
-		"     ";
-	static final String frog =
-		"     "+
-		" x   "+
-		"x *  "+
-		"   x "+
-		"     ";
-	static final String goose =
-		"     "+
-		" x   "+
-		" x*x "+
-		"   x "+
-		"     ";
-	static final String eel =
-		"     "+
-		" x   "+
-		"  *x "+
-		" x   "+
-		"     ";
-	static final String[] cards = { tiger, monkey, horse, mantis, elephant, crab, crane, dragon, boar, frog, goose, eel };
-	// rabbit, rooster, ox, cobra
+	String name;
+	String print;
+	int[] moves;
+
+	static String readFile(String path) {
+		try {
+			byte[] encoded = Files.readAllBytes(Paths.get(path));
+			return new String(encoded, Charset.defaultCharset());
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	static void init() {
+		String[] lines = readFile("cards.txt").split("\n");
+		cards = new Card[lines.length / 6];
+		for (int i = 0; i < cards.length; i++) {
+			Card c = cards[i] = new Card();			
+			c.name = lines[i*6];
+			c.print = lines[i*6+1] + lines[i*6+2] + lines[i*6+3] + lines[i*6+4] + lines[i*6+5];
+
+			int m = 0;
+			for (int j = 0; j < 25; j++)
+				if (c.print.charAt(j) == 'x')
+					m += 1;
+			c.moves = new int[m];
+			m = 0;
+			for (int j = 0; j < 25; j++)
+				if (c.print.charAt(j) == 'x')
+					c.moves[m++] = j;
+		}
+	}
+
+	static Card[] cards;
 	
-	static int jump_dest(int p, byte card, boolean rotate, int i) {
-		if (cards[card].charAt(i) != 'x') return -1;
+	static byte[] deal(Random r) {
+		byte[] w = new byte[cards.length];
+		for (int i = 0; i < cards.length; i++)
+			w[i] = (byte)i;
+		for (int i = cards.length - 1; i >= 0; i--) {
+			int j = r.nextInt(i + 1);
+			byte t = w[i];
+			w[i] = w[j];
+			w[j] = t;
+		}
+		return w;
+	}
+
+	//static final String[] cards = { tiger, monkey, horse, mantis, elephant, crab, crane, dragon, boar, frog, goose, eel, rabbit, rooster, ox, cobra };
+	
+	static int jump_dest(int p, boolean rotate, int i) {
 		int xi = i%5 - 2, yi = i/5 - 2;
 		if (rotate) { xi = -xi; yi = -yi; }
 		int x = p%5 + xi, y = p/5 + yi;
@@ -303,8 +281,8 @@ class State {
 				break;
 			for (int c = 0; c < 2; c++) {
 				byte _extra = (next == BLUE) ? (c == 0 ? blue0 : blue1) : (c == 0 ? red0 : red1);
-				for (int e = 0; e < 25; e++) {
-					int m = Card.jump_dest(pos, _extra, next == RED, e);
+				for (int e : Card.cards[c].moves) {
+					int m = Card.jump_dest(pos, next == RED, e);
 					if (m != -1 && m != my_piece_pos(0) && m != my_piece_pos(1) && m != my_piece_pos(2) && m != my_piece_pos(3) && m != my_piece_pos(4)) {
 						byte _blue0 = blue0;
 						byte _blue1 = blue1;
@@ -333,7 +311,7 @@ class State {
 		return r;
 	}
 
-	static String row(int a, int r, String e) { return emoji(Card.cards[a].substring(r*5, r*5+5), e); }
+	static String row(int a, int r, String e) { return emoji(Card.cards[a].print.substring(r*5, r*5+5), e); }
 
 	static String code(char c) {
 		switch (c) {
@@ -348,10 +326,16 @@ class State {
 
 	void print() {
 		char[] a = Board.decode(new char[25], board);
+		byte[] c = new byte[] { blue0, blue1, extra, red0, red1 };
 		for (int i = 0; i < 5; i++) {
 			String e = code(a[i*5]) + code(a[i*5+1]) + code(a[i*5+2]) + code(a[i*5+3]) + code(a[i*5+4]);
-			String p = (i == 2) ? code(next == State.RED ? 'R' : 'B') : "  ";
-			System.out.printf("%s  %s %s%s%s%s%s\n", p, e, row(blue0, i, "🔷"), row(blue1, i, "🔷"), row(extra, i, "🔺"), row(red0, i, "🔶"), row(red1, i, "🔶"));
+			String p = "  ";
+			if (i == 2 && !blue_wins() && !red_wins())
+				p = code(next == State.RED ? 'R' : 'B');
+			if (i % 2 == 1 && (blue_wins() || red_wins()))
+				p = code(red_wins() ? 'R' : 'B');
+			
+			System.out.printf("%s  %s %s%s%s%s%s %s\n", p, e, row(blue0, i, "🔷"), row(blue1, i, "🔷"), row(extra, i, "🔺"), row(red0, i, "🔶"), row(red1, i, "🔶"), Card.cards[c[i]].name);
 		}
 	}
 
@@ -403,6 +387,10 @@ class Minimax {
 				best_b = b;
 				best_score = score;
 				same_score = 1;
+				if (score == 100 && a.next == State.BLUE)
+					break;
+				if (score == -100 && a.next == State.RED)
+					break;
 			} else if (score == best_score) {
 				if (random.nextDouble() * (same_score + 1) > same_score) {
 					best_b = b;
@@ -415,26 +403,20 @@ class Minimax {
 }
 
 class Main {
-
 	public static void main(String[] args) {
-		byte[] cards = new byte[Card.cards.length];
-		for (int i = 0; i < cards.length; i++)
-			cards[i] = (byte)i;
-		Random r = new Random();
-		for (int i = cards.length - 1; i >= 0; i--) {
-			int j = r.nextInt(i + 1);
-			byte t = cards[i];
-			cards[i] = cards[j];
-			cards[j] = t;
-		}
-		State s = new State(Board.initial, cards[0], cards[1], cards[2], cards[3], cards[4], r.nextBoolean() ? State.BLUE : State.RED, 0);
+		Card.init();
+		byte[] cards = Card.deal(new Random());
+		State s = new State(Board.initial, cards[0], cards[1], cards[2], cards[3], cards[4], new Random().nextBoolean() ? State.BLUE : State.RED, 0);
+		System.out.printf("move %s\n", s.depth);
 		s.print();
+		System.out.println();
 
 		Minimax mx = new Minimax();
 		while (!s.blue_wins() && !s.red_wins()) {
 			Minimax.Result m = null;
-			mx.remaining_states = s.next == State.BLUE ? 2000*1000 : 10000;
-			for (int depth = 1; depth <= 100; depth++) {
+			mx.remaining_states = 20*1000*1000;
+			int max_depth = 1000;
+			for (int depth = s.depth + 6; depth <= s.depth + max_depth; depth++) {
 				long start = System.nanoTime();
 				Minimax.Result m0 = mx.bestMove(s, depth);
 				float duration = (System.nanoTime() - start) * 1e-9f;
@@ -442,9 +424,13 @@ class Main {
 					break;
 				m = m0;
 				if (duration >= 0.01f)
-					System.out.printf("depth %d, time %.2f\n", depth, duration);
+					System.out.printf("depth %d, time %.2f, score %s\n", depth - s.depth, duration, m.score);
+				if ((m.score == 100 && s.next == State.BLUE) || (m.score == -100 && s.next == State.RED))
+					break;
 			}
+			System.out.printf("move %s\n", m.move.depth);
 			m.move.print();
+			System.out.println();
 			s = m.move;
 		}
 	}
