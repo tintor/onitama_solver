@@ -281,7 +281,7 @@ class State {
 				break;
 			for (int c = 0; c < 2; c++) {
 				byte _extra = (next == BLUE) ? (c == 0 ? blue0 : blue1) : (c == 0 ? red0 : red1);
-				for (int e : Card.cards[c].moves) {
+				for (int e : Card.cards[_extra].moves) {
 					int m = Card.jump_dest(pos, next == RED, e);
 					if (m != -1 && m != my_piece_pos(0) && m != my_piece_pos(1) && m != my_piece_pos(2) && m != my_piece_pos(3) && m != my_piece_pos(4)) {
 						byte _blue0 = blue0;
