@@ -283,7 +283,8 @@ class State {
 				byte _extra = (next == BLUE) ? (c == 0 ? blue0 : blue1) : (c == 0 ? red0 : red1);
 				for (int e : Card.cards[_extra].moves) {
 					int m = Card.jump_dest(pos, next == RED, e);
-					if (m != -1 && m != my_piece_pos(0) && m != my_piece_pos(1) && m != my_piece_pos(2) && m != my_piece_pos(3) && m != my_piece_pos(4)) {
+					if (m != -1 && m != my_piece_pos(0) && m != my_piece_pos(1) && m != my_piece_pos(2)
+							&& m != my_piece_pos(3) && m != my_piece_pos(4)) {
 						byte _blue0 = blue0;
 						byte _blue1 = blue1;
 						byte _red0 = red0;
@@ -293,7 +294,10 @@ class State {
 						} else {
 							if (c == 0) _red0 = extra; else _red1 = extra;
 						}
-						states[count++] = new State(Board.jump(a, board, piece + (next == RED ? 5 : 0), m), _blue0, _blue1, _red0, _red1, _extra, (next == RED) ? BLUE : RED, depth + 1);
+						states[count++] = new State(
+								Board.jump(a, board, piece + (next == RED ? 5 : 0), m),
+								_blue0, _blue1, _red0, _red1, _extra,
+								(next == RED) ? BLUE : RED, depth + 1);
 					}
 				}
 			}
@@ -335,7 +339,8 @@ class State {
 			if (i % 2 == 1 && (blue_wins() || red_wins()))
 				p = code(red_wins() ? 'R' : 'B');
 			
-			System.out.printf("%s  %s %s%s%s%s%s %s\n", p, e, row(blue0, i, "🔷"), row(blue1, i, "🔷"), row(extra, i, "🔺"), row(red0, i, "🔶"), row(red1, i, "🔶"), Card.cards[c[i]].name);
+			System.out.printf("%s  %s %s%s%s%s%s %s\n", p, e, row(blue0, i, "🔷"), row(blue1, i, "🔷"),
+					row(extra, i, "🔺"), row(red0, i, "🔶"), row(red1, i, "🔶"), Card.cards[c[i]].name);
 		}
 	}
 
@@ -406,7 +411,8 @@ class Main {
 	public static void main(String[] args) {
 		Card.init();
 		byte[] cards = Card.deal(new Random());
-		State s = new State(Board.initial, cards[0], cards[1], cards[2], cards[3], cards[4], new Random().nextBoolean() ? State.BLUE : State.RED, 0);
+		State s = new State(Board.initial, cards[0], cards[1], cards[2], cards[3], cards[4],
+				new Random().nextBoolean() ? State.BLUE : State.RED, 0);
 		System.out.printf("move %s\n", s.depth);
 		s.print();
 		System.out.println();
@@ -433,5 +439,6 @@ class Main {
 			System.out.println();
 			s = m.move;
 		}
+		System.out.println(s.blue_wins() ? "Blue wins!" : "Red wins!");
 	}
 }
